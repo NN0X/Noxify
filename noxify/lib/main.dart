@@ -1002,15 +1002,14 @@ class LibraryPage extends StatelessWidget {
               children: [
                 if (noxifyState.isLocalSongsFocused)
                   Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.only(bottom: screenHeight * 0.2),
+                    child: Column(
                       children: [
                         SizedBox(
-                          height: screenHeight * 0.04,
+                          height: screenHeight *
+                              0.04, // Initial SizedBox at the top
                         ),
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: EdgeInsets.all(screenWidth > 600 ? 20 : 0),
                           alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
@@ -1022,62 +1021,83 @@ class LibraryPage extends StatelessWidget {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            onTap: () {
-                              noxifyState.isUpstreamSongsFocused =
-                                  !noxifyState.isUpstreamSongsFocused;
-                              noxifyState.isPlaylistsFocused =
-                                  !noxifyState.isPlaylistsFocused;
-                            },
+                            onTap: songsLocal.isNotEmpty
+                                ? () {
+                                    noxifyState.isUpstreamSongsFocused =
+                                        !noxifyState.isUpstreamSongsFocused;
+                                    noxifyState.isPlaylistsFocused =
+                                        !noxifyState.isPlaylistsFocused;
+                                  }
+                                : null,
                           ),
                         ),
                         const SizedBox(
                           height: 5,
                         ),
-                        for (var song in songsLocal)
-                          Column(
-                            children: [
-                              Container(
-                                color: Colors.black54,
-                                child: ListTile(
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          song.title,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize:
-                                                screenWidth > 600 ? 20 : 10,
+                        Expanded(
+                          // Wrap ListView.builder with another Expanded
+                          child: ListView.builder(
+                            padding: EdgeInsets.only(
+                                bottom: screenHeight *
+                                    0.2), // Padding at the bottom
+                            itemCount:
+                                songsLocal.length, // Directly count songs
+                            itemBuilder: (context, index) {
+                              final song = songsLocal[index]; // Get the song
+                              return Column(
+                                children: [
+                                  Container(
+                                    color: Colors.black54,
+                                    child: ListTile(
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              song.title,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize:
+                                                    screenWidth > 600 ? 20 : 10,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          overflow: TextOverflow.ellipsis,
+                                          if (screenWidth > 600 ||
+                                              (!noxifyState
+                                                      .isUpstreamSongsFocused &&
+                                                  !noxifyState
+                                                      .isPlaylistsFocused))
+                                            Image.asset(
+                                              'resources/covers/${song.id}.jpg',
+                                              width:
+                                                  screenWidth > 600 ? 80 : 50,
+                                              height:
+                                                  screenWidth > 600 ? 80 : 50,
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        song.artist,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: screenWidth > 600 ? 15 : 8,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Image.asset(
-                                        'resources/covers/${song.id}.jpg',
-                                        width: screenWidth > 600 ? 80 : 25,
-                                        height: screenWidth > 600 ? 80 : 25,
-                                      ),
-                                    ],
-                                  ),
-                                  subtitle: Text(
-                                    song.artist,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                      onTap: () {
+                                        noxifyState.nextSongs.insert(0, song);
+                                        noxifyState.skipNext(true);
+                                      },
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  onTap: () {
-                                    noxifyState.nextSongs.insert(0, song);
-                                    noxifyState.skipNext(true);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 5,
-                              ),
-                            ],
+                                  const SizedBox(
+                                    height: 5,
+                                  ),
+                                ],
+                              );
+                            },
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -1086,10 +1106,11 @@ class LibraryPage extends StatelessWidget {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: screenHeight * 0.04,
+                          height: screenHeight *
+                              0.04, // Initial SizedBox at the top
                         ),
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: EdgeInsets.all(screenWidth > 600 ? 20 : 0),
                           alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
@@ -1101,62 +1122,83 @@ class LibraryPage extends StatelessWidget {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            onTap: () {
-                              noxifyState.isLocalSongsFocused =
-                                  !noxifyState.isLocalSongsFocused;
-                              noxifyState.isPlaylistsFocused =
-                                  !noxifyState.isPlaylistsFocused;
-                            },
+                            onTap: songsUpstream.isNotEmpty
+                                ? () {
+                                    noxifyState.isLocalSongsFocused =
+                                        !noxifyState.isLocalSongsFocused;
+                                    noxifyState.isPlaylistsFocused =
+                                        !noxifyState.isPlaylistsFocused;
+                                  }
+                                : null,
                           ),
                         ),
                         const SizedBox(
                           height: 5,
                         ),
-                        for (var song in songsUpstream)
-                          Column(
-                            children: [
-                              Container(
-                                color: Colors.black54,
-                                child: ListTile(
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          song.title,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize:
-                                                screenWidth > 600 ? 20 : 10,
+                        Expanded(
+                          // Wrap ListView with another Expanded to fill the remaining space
+                          child: ListView.builder(
+                            padding: EdgeInsets.only(
+                                bottom: screenHeight *
+                                    0.2), // Padding at the bottom
+                            itemCount:
+                                songsUpstream.length, // Directly count songs
+                            itemBuilder: (context, index) {
+                              final song = songsUpstream[index]; // Get the song
+                              return Column(
+                                children: [
+                                  Container(
+                                    color: Colors.black54,
+                                    child: ListTile(
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              song.title,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize:
+                                                    screenWidth > 600 ? 20 : 10,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          overflow: TextOverflow.ellipsis,
+                                          if (screenWidth > 600 ||
+                                              (!noxifyState
+                                                      .isLocalSongsFocused &&
+                                                  !noxifyState
+                                                      .isPlaylistsFocused))
+                                            Image.asset(
+                                              'resources/covers/${song.id}.jpg',
+                                              width:
+                                                  screenWidth > 600 ? 80 : 50,
+                                              height:
+                                                  screenWidth > 600 ? 80 : 50,
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        song.artist,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: screenWidth > 600 ? 15 : 8,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Image.asset(
-                                        'resources/covers/${song.id}.jpg',
-                                        width: screenWidth > 600 ? 80 : 25,
-                                        height: screenWidth > 600 ? 80 : 25,
-                                      ),
-                                    ],
-                                  ),
-                                  subtitle: Text(
-                                    song.artist,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                      onTap: () {
+                                        noxifyState.nextSongs.insert(0, song);
+                                        noxifyState.skipNext(true);
+                                      },
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  onTap: () {
-                                    noxifyState.nextSongs.insert(0, song);
-                                    noxifyState.skipNext(true);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 5,
-                              ),
-                            ],
+                                  const SizedBox(
+                                    height: 5,
+                                  ),
+                                ],
+                              );
+                            },
                           ),
+                        ),
                       ],
                     ),
                   ),
@@ -1165,10 +1207,11 @@ class LibraryPage extends StatelessWidget {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: screenHeight * 0.04,
+                          height: screenHeight *
+                              0.04, // Initial SizedBox at the top
                         ),
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: EdgeInsets.all(screenWidth > 600 ? 20 : 0),
                           alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
@@ -1180,61 +1223,83 @@ class LibraryPage extends StatelessWidget {
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            onTap: () {
-                              noxifyState.isLocalSongsFocused =
-                                  !noxifyState.isLocalSongsFocused;
-                              noxifyState.isUpstreamSongsFocused =
-                                  !noxifyState.isUpstreamSongsFocused;
-                            },
+                            onTap: playlists.isNotEmpty
+                                ? () {
+                                    noxifyState.isLocalSongsFocused =
+                                        !noxifyState.isLocalSongsFocused;
+                                    noxifyState.isUpstreamSongsFocused =
+                                        !noxifyState.isUpstreamSongsFocused;
+                                  }
+                                : null,
                           ),
                         ),
                         const SizedBox(
                           height: 5,
                         ),
-                        for (var playlist in playlists)
-                          Column(
-                            children: [
-                              Container(
-                                color: Colors.black54,
-                                child: ListTile(
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          playlist.title,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize:
-                                                screenWidth > 600 ? 20 : 10,
+                        Expanded(
+                          // Wrap ListView with another Expanded to fill the remaining space
+                          child: ListView.builder(
+                            padding: EdgeInsets.only(
+                                bottom: screenHeight *
+                                    0.2), // Padding at the bottom
+                            itemCount:
+                                playlists.length, // Directly count playlists
+                            itemBuilder: (context, index) {
+                              final playlist =
+                                  playlists[index]; // Get the playlist
+                              return Column(
+                                children: [
+                                  Container(
+                                    color: Colors.black54,
+                                    child: ListTile(
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              playlist.title,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize:
+                                                    screenWidth > 600 ? 20 : 10,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                          overflow: TextOverflow.ellipsis,
+                                          if (screenWidth > 600 ||
+                                              (!noxifyState
+                                                      .isLocalSongsFocused &&
+                                                  !noxifyState
+                                                      .isUpstreamSongsFocused))
+                                            Image.asset(
+                                              'resources/albums/${playlist.id}.jpg',
+                                              width:
+                                                  screenWidth > 600 ? 80 : 50,
+                                              height:
+                                                  screenWidth > 600 ? 80 : 50,
+                                            ),
+                                        ],
+                                      ),
+                                      subtitle: Text(
+                                        playlist.author,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: screenWidth > 600 ? 15 : 8,
                                         ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Image.asset(
-                                        'resources/albums/${playlist.id}.jpg',
-                                        width: screenWidth > 600 ? 80 : 25,
-                                        height: screenWidth > 600 ? 80 : 25,
-                                      ),
-                                    ],
-                                  ),
-                                  subtitle: Text(
-                                    playlist.author,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                      onTap: () {
+                                        noxifyState.loadPlaylist(playlist);
+                                      },
                                     ),
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  onTap: () {
-                                    noxifyState.loadPlaylist(playlist);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(
-                                height: 5,
-                              ),
-                            ],
+                                  const SizedBox(
+                                    height: 5,
+                                  ),
+                                ],
+                              );
+                            },
                           ),
+                        ),
                       ],
                     ),
                   ),
