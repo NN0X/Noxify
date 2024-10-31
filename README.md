@@ -14,11 +14,11 @@ Quite obvious. It's a mix of my nickname and Spotify.
 
 ### Technology
 
-Noxify was created using Flutter and Dart. The music is downloaded from my server.
+Noxify was created using Flutter and Dart. The music is downloaded from my server with authentication to prevent illegal distribution of unlicensed music.
 
 ## License
 
-Noxify is under [Apache 2.0](LICENSE.md) license and [Common Clause](NOTICE.md).
+Noxify is under [Apache 2.0](LICENSE.md) license and [Common Clause](NOTICE.md). Additional restrictions are also applied as stated in [MUSIC.md](MUSIC.md). In case of conflict between licenses, the most restrictive one applies .If licenses are unclear to you, please contact me.
 
 ### Commercial use
 
