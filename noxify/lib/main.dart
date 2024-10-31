@@ -4,7 +4,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import 'dart:typed_data';
-import 'dart:io';
 
 void main() async {
   runApp(const Noxify());
@@ -48,14 +47,21 @@ class Noxify extends StatelessWidget {
 
 // load audio file function
 Future<Uint8List> loadAudioFile(String path) async {
-  final file = await rootBundle.load(path);
-  return file.buffer.asUint8List();
+  ByteData file;
+  try {
+    file = await rootBundle.load(path);
+    print('Loaded audio file: $path');
+    return file.buffer.asUint8List();
+  } catch (e) {
+    print('Error loading audio file: $path');
+    return Uint8List(0);
+  }
 }
 
 class NoxifyState extends ChangeNotifier {
   var isDarkMode = true;
   var themeMode = ThemeMode.dark;
-  var isNavRail = true;
+  var isNavRail = false;
   var searchQuery = '';
 
   final player = AudioPlayer();
@@ -99,6 +105,11 @@ class NoxifyState extends ChangeNotifier {
 
   void toggleLooping() {
     isLooping = !isLooping;
+    if (isLooping) {
+      player.setReleaseMode(ReleaseMode.loop);
+    } else {
+      player.setReleaseMode(ReleaseMode.release);
+    }
     notifyListeners();
   }
 
@@ -127,6 +138,7 @@ class NoxifyState extends ChangeNotifier {
 
   void updateSongTime(Duration p) {
     if (currentSongDuration == 0.0) {
+      notifyListeners();
       return;
     }
     currentSongPosition = p.inSeconds / currentSongDuration;
@@ -221,14 +233,14 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
         .listen((Duration p) => noxifyState.updateSongTime(p));
 
     noxifyState.player.onPlayerComplete.listen((_) {
-      if (noxifyState.isLooping) {
-        noxifyState.currentSongPosition = 0.0;
-        noxifyState.player.seek(const Duration(seconds: 0));
-        noxifyState.player.resume();
-      } else {
+      if (!noxifyState.isLooping) {
         noxifyState.isPlaying = false;
         noxifyState.player.pause();
         noxifyState.skipNext();
+      } else {
+        noxifyState.player.pause();
+        noxifyState.player.seek(const Duration(seconds: 0));
+        noxifyState.player.resume();
       }
     });
 
@@ -394,7 +406,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                       ),
                       Padding(
                         padding: EdgeInsets.only(
-                            top: screenHeight > 600
+                            top: screenHeight > 800
                                 ? screenHeight * 0.38
                                 : screenHeight * 0.285),
                         child: TextButton(
@@ -429,11 +441,11 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
             ),
           ),
           Positioned(
-            top: screenHeight > 600 ? screenHeight * 0.92 : screenHeight * 0.9,
+            top: screenHeight > 800 ? screenHeight * 0.92 : screenHeight * 0.88,
             left: 0,
             child: SizedBox(
               width: screenWidth,
-              height: screenHeight * 0.1,
+              height: screenHeight * 0.15,
               child: Container(
                 color: Theme.of(context).scaffoldBackgroundColor,
                 child: Column(
@@ -502,7 +514,9 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                     Row(
                       children: [
                         SizedBox(
-                          width: screenWidth * 0.42,
+                          width: screenWidth > 600
+                              ? screenWidth * 0.4
+                              : screenWidth * 0.2,
                         ),
                         IconButton(
                           icon: const Icon(Icons.shuffle),
@@ -562,7 +576,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                               : null,
                         ),
                         SizedBox(
-                          width: screenWidth * 0.1,
+                          width: screenWidth * 0.03,
                         ),
                         if (noxifyState.volume == 0.0)
                           const Icon(Icons.volume_off)
@@ -572,30 +586,32 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                           const Icon(Icons.volume_down)
                         else
                           const Icon(Icons.volume_up),
-                        Material(
-                          color: Colors.transparent,
-                          child: Slider(
-                            thumbColor: Colors.white,
-                            value: noxifyState.volume,
-                            onChanged: (value) {
-                              noxifyState.player.setVolume(value);
-                              setState(() {
-                                noxifyState.volume = value;
-                              });
-                            },
-                            min: 0.0,
-                            max: 1.0,
-                          ),
-                        ),
-                        Material(
-                          color: Colors.transparent,
-                          child: Text(
-                            '${(noxifyState.volume * 100).round()}%',
-                            style: const TextStyle(
-                              color: Colors.white,
+                        if (screenWidth > 600)
+                          Material(
+                            color: Colors.transparent,
+                            child: Slider(
+                              thumbColor: Colors.white,
+                              value: noxifyState.volume,
+                              onChanged: (value) {
+                                noxifyState.player.setVolume(value);
+                                setState(() {
+                                  noxifyState.volume = value;
+                                });
+                              },
+                              min: 0.0,
+                              max: 1.0,
                             ),
                           ),
-                        ),
+                        if (screenWidth > 600)
+                          Material(
+                            color: Colors.transparent,
+                            child: Text(
+                              '${(noxifyState.volume * 100).round()}%',
+                              style: const TextStyle(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ],
@@ -605,13 +621,13 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
           ),
           Positioned(
             top:
-                screenHeight > 600 ? screenHeight * 0.925 : screenHeight * 0.92,
+                screenHeight > 800 ? screenHeight * 0.925 : screenHeight * 0.89,
             left: 10,
             child: Row(
               children: [
                 SizedBox(
-                  width: 90,
-                  height: 90,
+                  width: screenWidth > 600 ? 100 : screenWidth * 0.15,
+                  height: screenWidth > 600 ? 100 : screenWidth * 0.15,
                   child: Container(
                     color: Colors.white,
                     child: ClipRRect(
@@ -629,33 +645,39 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                   color: Colors.transparent,
                   child: Column(
                     children: [
+                      if (screenWidth <= 600)
+                        const SizedBox(
+                          height: 10,
+                        ),
                       Text(
                         noxifyState.currentSong,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: screenWidth > 600 ? 20 : 12,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Row(
                         children: [
-                          Text(
-                            noxifyState.currentAlbum,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              overflow: TextOverflow.ellipsis,
+                          if (screenWidth > 600)
+                            Text(
+                              noxifyState.currentAlbum,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          const Text(' - '),
-                          Text(
-                            noxifyState.currentArtist,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              overflow: TextOverflow.ellipsis,
+                          if (screenWidth > 600) const Text(' - '),
+                          if (screenWidth > 600)
+                            Text(
+                              noxifyState.currentArtist,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ],
@@ -701,7 +723,14 @@ class Song {
 
   void load(int id) async {
     // load song data from file
-    final file = await rootBundle.loadString('resources/songs.local');
+    String file;
+    try {
+      file = await rootBundle.loadString('resources/songs.local');
+      print('Loaded song data: $id');
+    } catch (e) {
+      print('Error loading song data: $id');
+      return;
+    }
     final songsData = file.toString().split('\n');
 
     for (var i = 0; i < songsData.length; i += 5) {
@@ -750,7 +779,14 @@ class Playlist {
 
   void load(int id) async {
     // load playlist data from file
-    final file = await rootBundle.loadString('resources/playlists.local');
+    String file;
+    try {
+      file = await rootBundle.loadString('resources/playlists.local');
+      print('Loaded playlist data: $id');
+    } catch (e) {
+      print('Error loading playlist data: $id');
+      return;
+    }
     final playlistsData = file.toString().split('\n');
 
     for (var i = 0; i < playlistsData.length; i += 4) {
@@ -795,14 +831,21 @@ class LibraryPage extends StatelessWidget {
     var songsLocal = <Song>[];
 
     // load song IDs from file
-    final file = await rootBundle.loadString('resources/songs.local');
+    String file;
+    try {
+      file = await rootBundle.loadString('resources/songs.local');
+      print('Loaded song IDs');
+    } catch (e) {
+      print('Error loading song IDs');
+      return songsLocal;
+    }
     final lines = file.toString().split('\n');
     final songIDs = <int>[];
     for (var i = 0; i < lines.length; i += 5) {
-      // check if resources/audio/{id}.mp3 exists
-      // if not, skip song
       final id = int.parse(lines[i]);
-      if (!File('resources/audio/$id.mp3').existsSync()) {
+      try {
+        await rootBundle.load('resources/audio/$id.mp3');
+      } catch (e) {
         continue;
       }
       songIDs.add(id);
@@ -864,26 +907,27 @@ class LibraryPage extends StatelessWidget {
           var playlists = snapshot.data!.playlists;
 
           final noxifyState = Provider.of<NoxifyState>(context);
-          final screenWidth = MediaQuery.sizeOf(context).width;
           final screenHeight = MediaQuery.sizeOf(context).height;
+          final screenWidth = MediaQuery.sizeOf(context).width;
+
           return Center(
             child: Row(
               children: [
                 Expanded(
                   child: Column(
                     children: [
-                      const SizedBox(
-                        height: 70,
+                      SizedBox(
+                        height: screenHeight * 0.04,
                       ),
                       Container(
                         padding: const EdgeInsets.all(20),
                         alignment: Alignment.center,
                         color: Colors.black54,
-                        child: const Text(
-                          'Local Songs',
+                        child: Text(
+                          'Local',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: screenWidth > 600 ? 20 : 10,
                           ),
                         ),
                       ),
@@ -891,8 +935,22 @@ class LibraryPage extends StatelessWidget {
                         Container(
                           color: Colors.black54,
                           child: ListTile(
-                            title: Text(song.title),
-                            subtitle: Text(song.artist),
+                            title: Text(
+                              song.title,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 20 : 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              song.artist,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 15 : 8,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onTap: () {
                               noxifyState.loadSong(song);
                             },
@@ -904,18 +962,18 @@ class LibraryPage extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      const SizedBox(
-                        height: 70,
+                      SizedBox(
+                        height: screenHeight * 0.04,
                       ),
                       Container(
                         padding: const EdgeInsets.all(20),
                         alignment: Alignment.center,
                         color: Colors.black54,
-                        child: const Text(
-                          'Upstream Songs',
+                        child: Text(
+                          'Upstream',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: screenWidth > 600 ? 20 : 9,
                           ),
                         ),
                       ),
@@ -923,8 +981,22 @@ class LibraryPage extends StatelessWidget {
                         Container(
                           color: Colors.black54,
                           child: ListTile(
-                            title: Text(song.title),
-                            subtitle: Text(song.artist),
+                            title: Text(
+                              song.title,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 20 : 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              song.artist,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 15 : 8,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onTap: () {},
                           ),
                         ),
@@ -934,18 +1006,18 @@ class LibraryPage extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      const SizedBox(
-                        height: 70,
+                      SizedBox(
+                        height: screenHeight * 0.04,
                       ),
                       Container(
                         padding: const EdgeInsets.all(20),
                         alignment: Alignment.center,
                         color: Colors.black54,
-                        child: const Text(
+                        child: Text(
                           'Playlists',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize: screenWidth > 600 ? 20 : 10,
                           ),
                         ),
                       ),
@@ -953,8 +1025,22 @@ class LibraryPage extends StatelessWidget {
                         Container(
                           color: Colors.black54,
                           child: ListTile(
-                            title: Text(playlist.title),
-                            subtitle: Text(playlist.author),
+                            title: Text(
+                              playlist.title,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 20 : 10,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              playlist.author,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth > 600 ? 15 : 8,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             onTap: () {},
                           ),
                         ),

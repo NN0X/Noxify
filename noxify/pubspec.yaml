@@ -29,3 +29,5 @@ flutter:
     - resources/
     - resources/images/
     - resources/audio/
+    - resources/audio/0.mp3
+    - resources/songs.local
