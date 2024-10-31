@@ -45,6 +45,11 @@ class Noxify extends StatelessWidget {
   }
 }
 
+int randomInt(int min, int max) {
+  return min +
+      (max - min) * (DateTime.now().microsecondsSinceEpoch % 1000) ~/ 1000;
+}
+
 // load audio file function
 Future<Uint8List> loadAudioFile(String path) async {
   ByteData file;
@@ -63,6 +68,11 @@ class NoxifyState extends ChangeNotifier {
   var themeMode = ThemeMode.dark;
   var isNavRail = false;
   var searchQuery = '';
+  var switchingSong = false;
+
+  var userID = -1;
+  var userName = '';
+  var avatarPath = '';
 
   final player = AudioPlayer();
   var isLooping = false;
@@ -70,18 +80,36 @@ class NoxifyState extends ChangeNotifier {
   var isShuffle = false;
   var isSongLoaded = false;
   var isPlaying = false;
-  var currentSongID = -1;
-  var currentSong = '-';
-  var currentArtist = '-';
-  var currentAlbum = '-';
+
+  Song currentSong = Song(id: -1);
   var currentSongDuration = 0.0;
   var currentSongPosition = 0.0;
   var volume = 0.5;
-  var previousSongs = <int>[];
-  var nextSongs = <int>[];
+  var previousSongs = <Song>[];
+  var nextSongs = <Song>[];
 
   var songTimeString = '';
   var songDurationString = '';
+
+  var isLocalSongsFocused = true;
+  var isUpstreamSongsFocused = true;
+  var isPlaylistsFocused = true;
+
+  void loadUser() async {
+    // load user data from file
+    String file;
+    try {
+      file = await rootBundle.loadString('resources/user.local');
+    } catch (e) {
+      print('Error loading user data');
+      return;
+    }
+    final lines = file.toString().split('\n');
+    userID = int.parse(lines[0]);
+    userName = lines[1];
+    avatarPath = 'resources/avatars/$userID.jpg';
+    notifyListeners();
+  }
 
   void toggleDarkMode() {
     isDarkMode = !isDarkMode;
@@ -121,18 +149,25 @@ class NoxifyState extends ChangeNotifier {
   void skipPrevious() {
     Song previousSong;
     if (previousSongs.isNotEmpty) {
-      previousSong = Song(id: previousSongs.removeLast());
-      previousSong.load(previousSong.id);
-      loadSong(previousSong);
+      previousSong = previousSongs.removeLast();
+      nextSongs.insert(0, currentSong);
+      loadSong(previousSong, isAlbumLoaded);
     }
   }
 
-  void skipNext() {
+  void skipNext(bool overrideShuffle) {
     Song nextSong;
     if (nextSongs.isNotEmpty) {
-      nextSong = Song(id: nextSongs.removeAt(0));
-      nextSong.load(nextSong.id);
-      loadSong(nextSong);
+      if (isShuffle && !overrideShuffle) {
+        final randomIndex = randomInt(0, nextSongs.length);
+        nextSong = nextSongs.removeAt(randomIndex);
+        previousSongs.add(currentSong);
+        loadSong(nextSong, isAlbumLoaded);
+      } else {
+        nextSong = nextSongs.removeAt(0);
+        previousSongs.add(currentSong);
+        loadSong(nextSong, isAlbumLoaded);
+      }
     }
   }
 
@@ -162,31 +197,34 @@ class NoxifyState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void loadSong(Song song) {
-    if (currentSongID == song.id) {
-      // restart song
-      isPlaying = true;
-      player.seek(const Duration(seconds: 0));
-      player.resume();
-      return;
-    }
-
+  void loadSong(Song song, bool isAlbum) {
     if (isSongLoaded) {
       player.stop();
-      previousSongs.add(song.id);
     }
-    currentSong = song.title;
-    currentArtist = song.artist;
-    currentAlbum = song.album;
+    currentSong = song;
 
     loadAudioFile('resources/audio/${song.id}.mp3').then((audioFile) {
       player.play(BytesSource(audioFile));
-      currentSongID = song.id;
+      switchingSong = false;
     });
     player.setVolume(volume);
-    isSongLoaded = true;
+
+    currentSongPosition = 0.0;
+    print('Loading song: ${song.id}');
+    print('Title: ${song.title}');
+    print('Artist: ${song.artist}');
+    print('Album: ${song.album}');
     isPlaying = true;
+    isSongLoaded = true;
+    isAlbumLoaded = isAlbum;
+    player.resume();
     notifyListeners();
+  }
+
+  loadPlaylist(Playlist playlist) {
+    // add to next songs all songs from playlist except the first one
+    nextSongs = playlist.songs.sublist(1);
+    loadSong(playlist.songs[0], true);
   }
 }
 
@@ -233,16 +271,22 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
         .listen((Duration p) => noxifyState.updateSongTime(p));
 
     noxifyState.player.onPlayerComplete.listen((_) {
+      if (noxifyState.switchingSong) {
+        return;
+      }
+      noxifyState.switchingSong = true;
       if (!noxifyState.isLooping) {
         noxifyState.isPlaying = false;
         noxifyState.player.pause();
-        noxifyState.skipNext();
+        noxifyState.skipNext(false);
       } else {
         noxifyState.player.pause();
         noxifyState.player.seek(const Duration(seconds: 0));
         noxifyState.player.resume();
       }
     });
+
+    noxifyState.loadUser();
 
     return LayoutBuilder(builder: (context, constraints) {
       return Stack(
@@ -394,9 +438,9 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                             radius: 30,
                             backgroundColor: Colors.white,
                             child: ClipOval(
-                              child: Image.asset(
-                                'resources/images/antony.jpg',
-                              ),
+                              child: noxifyState.userID == -1
+                                  ? const Icon(Icons.account_circle)
+                                  : Image.asset(noxifyState.avatarPath),
                             ),
                           ),
                           onPressed: () {
@@ -523,7 +567,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                           color: noxifyState.isShuffle
                               ? Theme.of(context).primaryColor
                               : Colors.white,
-                          onPressed: noxifyState.isAlbumLoaded
+                          onPressed: noxifyState.nextSongs.isNotEmpty
                               ? () {
                                   noxifyState.toggleShuffle();
                                 }
@@ -571,7 +615,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                               : Colors.white24,
                           onPressed: noxifyState.nextSongs.isNotEmpty
                               ? () {
-                                  noxifyState.skipNext();
+                                  noxifyState.skipNext(false);
                                 }
                               : null,
                         ),
@@ -632,9 +676,11 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                     color: Colors.white,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        'resources/images/antony.jpg',
-                      ),
+                      child: noxifyState.isSongLoaded
+                          ? Image.asset(
+                              'resources/covers/${noxifyState.currentSong.id}.jpg',
+                            )
+                          : null,
                     ),
                   ),
                 ),
@@ -650,7 +696,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                           height: 10,
                         ),
                       Text(
-                        noxifyState.currentSong,
+                        noxifyState.currentSong.title,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: screenWidth > 600 ? 20 : 12,
@@ -661,7 +707,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                         children: [
                           if (screenWidth > 600)
                             Text(
-                              noxifyState.currentAlbum,
+                              noxifyState.currentSong.album,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -671,7 +717,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
                           if (screenWidth > 600) const Text(' - '),
                           if (screenWidth > 600)
                             Text(
-                              noxifyState.currentArtist,
+                              noxifyState.currentSong.artist,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -716,9 +762,9 @@ class Song {
 
   Song({
     required this.id,
-    this.title = '',
-    this.artist = '',
-    this.album = '',
+    this.title = '-',
+    this.artist = '-',
+    this.album = '-',
   });
 
   void load(int id) async {
@@ -768,7 +814,7 @@ class Playlist {
   final int id;
   String title;
   String author;
-  List<int> songs;
+  List<Song> songs;
 
   Playlist({
     required this.id,
@@ -778,7 +824,7 @@ class Playlist {
   });
 
   void load(int id) async {
-    // load playlist data from file
+    // load name and author from playlists.local file
     String file;
     try {
       file = await rootBundle.loadString('resources/playlists.local');
@@ -788,14 +834,33 @@ class Playlist {
       return;
     }
     final playlistsData = file.toString().split('\n');
-
     for (var i = 0; i < playlistsData.length; i += 4) {
       if (int.parse(playlistsData[i]) == id) {
         title = playlistsData[i + 1];
         author = playlistsData[i + 2];
-        songs = playlistsData[i + 3].split(',').map(int.parse).toList();
         break;
       }
+    }
+
+    // load song ids from playlist file 'resources/playlists/$id.playlist'
+    try {
+      file = await rootBundle.loadString('resources/playlists/$id.playlist');
+      print('Loaded playlist songs: $id');
+    } catch (e) {
+      print('Error loading playlist songs: $id');
+      return;
+    }
+    songs = [];
+    final songsData = file.toString().split('\n');
+    print("File: ");
+    print(file.toString());
+    for (var i = 0; i < songsData.length; i++) {
+      if (int.tryParse(songsData[i]) == null) {
+        continue;
+      }
+      final song = Song(id: int.parse(songsData[i]));
+      song.load(song.id);
+      songs.add(song);
     }
   }
 
@@ -876,6 +941,28 @@ class LibraryPage extends StatelessWidget {
 
   Future<List<Playlist>> getPlaylists() async {
     var playlists = <Playlist>[];
+    String file;
+    try {
+      file = await rootBundle.loadString('resources/playlists.local');
+      print('Loaded playlists IDs');
+    } catch (e) {
+      print('Error loading playlists IDs');
+      return playlists;
+    }
+
+    final lines = file.toString().split('\n');
+    final playlistIDs = <int>[];
+    for (var i = 0; i < lines.length; i += 4) {
+      final id = int.parse(lines[i]);
+      playlistIDs.add(id);
+    }
+
+    for (var id in playlistIDs) {
+      final p = Playlist(id: id);
+      p.load(id);
+      playlists.add(p);
+    }
+
     return playlists;
   }
 
@@ -913,141 +1000,244 @@ class LibraryPage extends StatelessWidget {
           return Center(
             child: Row(
               children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: screenHeight * 0.04,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        alignment: Alignment.center,
-                        color: Colors.black54,
-                        child: Text(
-                          'Local',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: screenWidth > 600 ? 20 : 10,
-                          ),
+                if (noxifyState.isLocalSongsFocused)
+                  Expanded(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.only(bottom: screenHeight * 0.2),
+                      children: [
+                        SizedBox(
+                          height: screenHeight * 0.04,
                         ),
-                      ),
-                      for (var song in songsLocal)
                         Container(
+                          padding: const EdgeInsets.all(20),
+                          alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
                             title: Text(
-                              song.title,
+                              'Local',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: screenWidth > 600 ? 20 : 10,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              song.artist,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: screenWidth > 600 ? 15 : 8,
+                                fontSize: screenWidth > 600 ? 30 : 15,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                             onTap: () {
-                              noxifyState.loadSong(song);
+                              noxifyState.isUpstreamSongsFocused =
+                                  !noxifyState.isUpstreamSongsFocused;
+                              noxifyState.isPlaylistsFocused =
+                                  !noxifyState.isPlaylistsFocused;
                             },
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: screenHeight * 0.04,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        alignment: Alignment.center,
-                        color: Colors.black54,
-                        child: Text(
-                          'Upstream',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: screenWidth > 600 ? 20 : 9,
-                          ),
+                        const SizedBox(
+                          height: 5,
                         ),
-                      ),
-                      for (var song in songsUpstream)
+                        for (var song in songsLocal)
+                          Column(
+                            children: [
+                              Container(
+                                color: Colors.black54,
+                                child: ListTile(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          song.title,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize:
+                                                screenWidth > 600 ? 20 : 10,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Image.asset(
+                                        'resources/covers/${song.id}.jpg',
+                                        width: screenWidth > 600 ? 80 : 25,
+                                        height: screenWidth > 600 ? 80 : 25,
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    song.artist,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () {
+                                    noxifyState.nextSongs.insert(0, song);
+                                    noxifyState.skipNext(true);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 5,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                if (noxifyState.isUpstreamSongsFocused)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: screenHeight * 0.04,
+                        ),
                         Container(
+                          padding: const EdgeInsets.all(20),
+                          alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
                             title: Text(
-                              song.title,
+                              'Upstream',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: screenWidth > 600 ? 20 : 10,
+                                fontSize: screenWidth > 600 ? 30 : 15,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: Text(
-                              song.artist,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: screenWidth > 600 ? 15 : 8,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () {},
+                            onTap: () {
+                              noxifyState.isLocalSongsFocused =
+                                  !noxifyState.isLocalSongsFocused;
+                              noxifyState.isPlaylistsFocused =
+                                  !noxifyState.isPlaylistsFocused;
+                            },
                           ),
                         ),
-                    ],
+                        const SizedBox(
+                          height: 5,
+                        ),
+                        for (var song in songsUpstream)
+                          Column(
+                            children: [
+                              Container(
+                                color: Colors.black54,
+                                child: ListTile(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          song.title,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize:
+                                                screenWidth > 600 ? 20 : 10,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Image.asset(
+                                        'resources/covers/${song.id}.jpg',
+                                        width: screenWidth > 600 ? 80 : 25,
+                                        height: screenWidth > 600 ? 80 : 25,
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    song.artist,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () {
+                                    noxifyState.nextSongs.insert(0, song);
+                                    noxifyState.skipNext(true);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 5,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      SizedBox(
-                        height: screenHeight * 0.04,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        alignment: Alignment.center,
-                        color: Colors.black54,
-                        child: Text(
-                          'Playlists',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: screenWidth > 600 ? 20 : 10,
-                          ),
+                if (noxifyState.isPlaylistsFocused)
+                  Expanded(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: screenHeight * 0.04,
                         ),
-                      ),
-                      for (var playlist in playlists)
                         Container(
+                          padding: const EdgeInsets.all(20),
+                          alignment: Alignment.center,
                           color: Colors.black54,
                           child: ListTile(
                             title: Text(
-                              playlist.title,
+                              'Playlists',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: screenWidth > 600 ? 20 : 10,
+                                fontSize: screenWidth > 600 ? 30 : 15,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                            subtitle: Text(
-                              playlist.author,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: screenWidth > 600 ? 15 : 8,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () {},
+                            onTap: () {
+                              noxifyState.isLocalSongsFocused =
+                                  !noxifyState.isLocalSongsFocused;
+                              noxifyState.isUpstreamSongsFocused =
+                                  !noxifyState.isUpstreamSongsFocused;
+                            },
                           ),
                         ),
-                      // fill remaining space
-                    ],
+                        const SizedBox(
+                          height: 5,
+                        ),
+                        for (var playlist in playlists)
+                          Column(
+                            children: [
+                              Container(
+                                color: Colors.black54,
+                                child: ListTile(
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          playlist.title,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize:
+                                                screenWidth > 600 ? 20 : 10,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Image.asset(
+                                        'resources/albums/${playlist.id}.jpg',
+                                        width: screenWidth > 600 ? 80 : 25,
+                                        height: screenWidth > 600 ? 80 : 25,
+                                      ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    playlist.author,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: screenWidth > 600 ? 15 : 8,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () {
+                                    noxifyState.loadPlaylist(playlist);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 5,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           );
