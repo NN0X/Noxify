@@ -176,9 +176,7 @@ class LibraryPage extends StatelessWidget {
                         const SizedBox(
                           height: 5,
                         ),
-                        // TODO Wrap with ?Constraints? to limit height
                         Expanded(
-                          // Wrap ListView.builder with another Expanded
                           child: ListView.builder(
                             padding: EdgeInsets.only(
                                 bottom: screenHeight *
@@ -245,6 +243,11 @@ class LibraryPage extends StatelessWidget {
                               );
                             },
                           ),
+                        ),
+                        SizedBox(
+                          height: screenHeight > 1200
+                              ? screenHeight * 0.08
+                              : screenHeight * 0.12,
                         ),
                       ],
                     ),
@@ -344,6 +347,11 @@ class LibraryPage extends StatelessWidget {
                               );
                             },
                           ),
+                        ),
+                        SizedBox(
+                          height: screenHeight > 1200
+                              ? screenHeight * 0.08
+                              : screenHeight * 0.12,
                         ),
                       ],
                     ),
