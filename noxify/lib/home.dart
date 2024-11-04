@@ -265,7 +265,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
             ),
           ),
           Positioned(
-            top: screenHeight > 800 ? screenHeight * 0.92 : screenHeight * 0.88,
+            top: screenHeight > 1200 ? screenHeight * 0.92 : screenHeight * 0.88,
             left: 0,
             child: SizedBox(
               width: screenWidth,
@@ -445,7 +445,7 @@ class _NoxifyHomePageState extends State<NoxifyHomePage> {
           ),
           Positioned(
             top:
-                screenHeight > 800 ? screenHeight * 0.925 : screenHeight * 0.89,
+                screenHeight > 1200 ? screenHeight * 0.925 : screenHeight * 0.89,
             left: 10,
             child: Row(
               children: [

@@ -176,6 +176,7 @@ class LibraryPage extends StatelessWidget {
                         const SizedBox(
                           height: 5,
                         ),
+                        // TODO Wrap with ?Constraints? to limit height
                         Expanded(
                           // Wrap ListView.builder with another Expanded
                           child: ListView.builder(
@@ -248,10 +249,9 @@ class LibraryPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                if (noxifyState.isPlaylistsFocused)
-                  const SizedBox(
-                    width: 5,
-                  ),
+                const SizedBox(
+                  width: 5,
+                ),
                 if (noxifyState.isPlaylistsFocused)
                   Expanded(
                     child: Column(
