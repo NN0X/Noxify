@@ -68,11 +68,14 @@ class LibraryPage extends StatelessWidget {
 
   Future<List<Song>> getUpstreamSongs() async {
     var songsUpstream = <Song>[];
+    // TODO: request songs.upstream from server
     return songsUpstream;
   }
 
   Future<List<Playlist>> getPlaylists() async {
     var playlists = <Playlist>[];
+    // TODO: request playlists.upstream from server
+    // temporary
     String file;
     try {
       file = await rootBundle.loadString('resources/playlists.local');
