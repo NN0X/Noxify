@@ -27,7 +27,8 @@ flutter:
   uses-material-design: true
   assets:
     - resources/
-    - resources/images/
     - resources/audio/
-    - resources/audio/0.mp3
-    - resources/songs.local
+    - resources/covers/
+    - resources/avatars/
+    - resources/playlists/
+    - resources/albums/

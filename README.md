@@ -18,7 +18,7 @@ Noxify was created using Flutter and Dart. The music is downloaded from my serve
 
 ## License
 
-Noxify is under [Apache 2.0](LICENSE.md) license and [Common Clause](NOTICE.md). Additional restrictions are also applied as stated in [MUSIC.md](MUSIC.md). In case of conflict between licenses, the most restrictive one applies .If licenses are unclear to you, please contact me.
+Noxify is under [Apache 2.0](LICENSE.md) license and [Common Clause](NOTICE.md). Additional restrictions are also applied as stated in [MUSIC](MUSIC.md). In case of conflict between licenses, the most restrictive one applies .If licenses are unclear to you, please contact me.
 
 ### Commercial use
 
